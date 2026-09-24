@@ -56,7 +56,6 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   // Selected item from player bag to place into grid
   const [selectedBagItem, setSelectedBagItem] = useState<BlockType | null>(BlockType.WOOD_LOG);
 
-  if (!isOpen) return null;
 
   const showToast = (text: string, type: 'success' | 'warn' = 'success') => {
     setNotification({ text, type });
@@ -353,6 +352,10 @@ export const InventoryModal: React.FC<InventoryModalProps> = ({
   const allCreativeBlocks: BlockType[] = Object.values(BlockType).filter(
     (b) => typeof b === 'number' && b !== BlockType.AIR
   ) as BlockType[];
+
+  // Depois de todos os hooks: sair antes mudava a quantidade de hooks
+  // entre um render e outro, e o React derrubava a arvore inteira.
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-3 sm:p-5 animate-in fade-in duration-200">
