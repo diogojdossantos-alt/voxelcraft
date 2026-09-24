@@ -1115,6 +1115,10 @@ export default function App() {
           isFlying={isFlying}
           isCreative={isCreative}
           visible={showOnScreenControls}
+          voiceOn={voiceOn}
+          voiceOpenMic={voiceOpenMic}
+          voiceTalking={voiceTalking}
+          onTalkPress={(p) => voiceRef.current?.definirTransmissao(p)}
         />
       )}
 
