@@ -6,6 +6,7 @@ import { Player, TargetBlock } from './game/player';
 import { Environment } from './game/environment';
 import { WeatherSystem, WeatherType } from './game/weather';
 import { NetworkManager, ChatMessage } from './game/network';
+import { VoiceChat } from './game/voice';
 import { MobManager, MobDrop } from './game/mobs';
 import { sound } from './game/audio';
 import { HUD } from './components/HUD';
@@ -32,6 +33,7 @@ export default function App() {
   const networkRef = useRef<NetworkManager | null>(null);
   const mobManagerRef = useRef<MobManager | null>(null);
   const isCreativeRef = useRef<boolean>(false);
+  const voiceRef = useRef<VoiceChat | null>(null);
   const lastDamageTimeRef = useRef<number>(Date.now());
   const lastRegenTimeRef = useRef<number>(Date.now());
 
@@ -68,6 +70,11 @@ export default function App() {
   const [ping, setPing] = useState<number>(0);
   const [playerPos, setPlayerPos] = useState({ x: 8.5, y: 22, z: 8.5 });
   const [isFlying, setIsFlying] = useState<boolean>(false);
+  const [voiceOn, setVoiceOn] = useState<boolean>(false);
+  const [voiceTalking, setVoiceTalking] = useState<boolean>(false);
+  const [voiceOpenMic, setVoiceOpenMic] = useState<boolean>(false);
+  const [voiceSpeakers, setVoiceSpeakers] = useState<string[]>([]);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [isThirdPerson, setIsThirdPerson] = useState<boolean>(false);
   const [isCreative, setIsCreative] = useState<boolean>(false);
   const [onlineCount, setOnlineCount] = useState<number>(1);
@@ -204,8 +211,31 @@ export default function App() {
       });
     };
 
+    // Voz: a malha WebRTC usa o proprio WebSocket do jogo para se apresentar
+    const voice = new VoiceChat();
+    voiceRef.current = voice;
+    voice.enviarSinal = (para, data) => network.sendVoiceSignal(para, data);
+    voice.onMudanca = () => {
+      setVoiceOn(voice.ativo);
+      setVoiceTalking(voice.transmitindo || voice.microfoneAberto);
+      setVoiceOpenMic(voice.microfoneAberto);
+      setVoiceSpeakers(
+        [...voice.falando].map((id) =>
+          id === network.playerId ? 'Voce' : network.remotePlayers.get(id)?.name || id
+        )
+      );
+      setVoiceError(voice.erro);
+    };
+    network.onVoiceSignal = (de, data) => voice.receberSinal(de, data);
+    network.onVoiceState = (id, enabled) => {
+      if (enabled) voice.aoSaberQueLigou(id);
+      else voice.aoSaberQueDesligou(id);
+    };
+
     network.onPlayerListChanged = () => {
       setOnlineCount(network.remotePlayers.size + 1);
+      voice.definirMeuId(network.playerId);
+      voice.sincronizarPares([...network.remotePlayers.keys()]);
     };
 
     network.connect({
@@ -320,6 +350,9 @@ export default function App() {
         hotbar[selectedSlot] || BlockType.GRASS
       );
 
+      // Quem esta falando agora
+      voice.atualizar();
+
       // Update remote avatars interpolation
       network.updateAvatars(delta);
 
@@ -381,6 +414,7 @@ export default function App() {
       cancelAnimationFrame(animationId);
       window.removeEventListener('resize', handleResize);
       document.removeEventListener('pointerlockchange', handleLockChange);
+      voice.dispose();
       network.disconnect();
       mobManager.dispose();
       world.dispose();
@@ -440,6 +474,28 @@ export default function App() {
     }
   };
 
+  const toggleVoice = useCallback(async () => {
+    const voice = voiceRef.current;
+    const network = networkRef.current;
+    if (!voice || !network) return;
+
+    if (voice.ativo) {
+      voice.desligar();
+      network.sendVoiceState(false);
+    } else {
+      // O id precisa estar definido ANTES de ligar: e ele que decide
+      // qual dos dois lados faz a oferta.
+      voice.definirMeuId(network.playerId);
+      const ok = await voice.ligar([...network.remotePlayers.keys()]);
+      if (ok) network.sendVoiceState(true);
+    }
+  }, []);
+
+  const toggleOpenMic = useCallback(() => {
+    const voice = voiceRef.current;
+    if (voice) voice.definirMicrofoneAberto(!voice.microfoneAberto);
+  }, []);
+
   // Voo e exclusivo do modo Criativo: no Sobrevivencia a tecla F,
   // o botao do HUD e o controle mobile nao fazem nada.
   const toggleFlight = useCallback(() => {
@@ -455,6 +511,8 @@ export default function App() {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Do not capture game keys when typing in modals or chat
       if (chatOpen || inventoryOpen || roomsOpen || settingsOpen) {
+        // Abriu um painel com a tecla de falar apertada: nao deixar o mic preso
+        voiceRef.current?.definirTransmissao(false);
         if (e.key === 'Escape') {
           setChatOpen(false);
           setInventoryOpen(false);
@@ -490,6 +548,10 @@ export default function App() {
           break;
         case 'KeyF':
           toggleFlight();
+          break;
+        case 'KeyV':
+          // e.repeat: segurar a tecla dispara keydown varias vezes
+          if (!e.repeat) voiceRef.current?.definirTransmissao(true);
           break;
         case 'F5':
           e.preventDefault();
@@ -544,6 +606,9 @@ export default function App() {
         case 'ShiftRight':
           player.keys.sneak = false;
           player.isSneaking = false;
+          break;
+        case 'KeyV':
+          voiceRef.current?.definirTransmissao(false);
           break;
       }
     };
@@ -973,6 +1038,13 @@ export default function App() {
           ping={ping}
           playerPos={playerPos}
           isFlying={isFlying}
+          voiceOn={voiceOn}
+          voiceTalking={voiceTalking}
+          voiceOpenMic={voiceOpenMic}
+          voiceSpeakers={voiceSpeakers}
+          voiceError={voiceError}
+          onToggleVoice={toggleVoice}
+          onToggleOpenMic={toggleOpenMic}
           isThirdPerson={isThirdPerson}
           isCreative={isCreative}
           onlineCount={onlineCount}

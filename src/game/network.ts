@@ -29,6 +29,8 @@ export class NetworkManager {
 
   // HTTP Fallback State (used when WebSocket is restricted in cross-origin iframes)
   private useHttpFallback: boolean = false;
+  /** disconnect() ja rodou: nao ressuscitar a conexao por um evento atrasado. */
+  private isDisposed: boolean = false;
   private httpPollTimer: any = null;
   private cachedConfig: NetworkConfig | null = null;
   private pendingBlocksToSend: Array<{ x: number; y: number; z: number; blockType: BlockType }> = [];
@@ -53,6 +55,8 @@ export class NetworkManager {
   public onBlockUpdated?: (x: number, y: number, z: number, blockType: BlockType, byPlayerId: string) => void;
   public onChatReceived?: (msg: ChatMessage) => void;
   public onPlayerListChanged?: () => void;
+  public onVoiceSignal?: (de: string, data: any) => void;
+  public onVoiceState?: (id: string, enabled: boolean) => void;
 
   private scene: THREE.Scene;
   private lastMoveSend: number = 0;
@@ -64,7 +68,7 @@ export class NetworkManager {
   public connect(config: NetworkConfig) {
     this.cachedConfig = config;
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
 
     try {
       this.ws = new WebSocket(wsUrl);
@@ -96,13 +100,14 @@ export class NetworkManager {
       this.ws.onclose = () => {
         this.isConnected = false;
         // If WebSocket closes unexpectedly, gracefully switch to HTTP fallback
-        if (!this.useHttpFallback) {
+        if (!this.useHttpFallback && !this.isDisposed) {
           this.startHttpFallback(config);
         }
       };
 
       this.ws.onerror = () => {
         // Use console.warn instead of console.error so iframe error harness does not treat normal WS fallback as a fatal app crash
+        if (this.isDisposed) return; // socket fechado pela propria limpeza
         console.warn('[VoxelCraft] WebSocket direct connection unavailable. Activating HTTP multiplayer sync.');
         if (!this.useHttpFallback) {
           this.startHttpFallback(config);
@@ -126,7 +131,7 @@ export class NetworkManager {
 
   // HTTP Fallback Implementation
   private async startHttpFallback(config: NetworkConfig) {
-    if (this.useHttpFallback) return;
+    if (this.useHttpFallback || this.isDisposed) return;
     this.useHttpFallback = true;
 
     try {
@@ -334,6 +339,16 @@ export class NetworkManager {
         break;
       }
 
+      case 'voice:signal': {
+        if (this.onVoiceSignal && msg.from) this.onVoiceSignal(msg.from, msg.data);
+        break;
+      }
+
+      case 'voice:state': {
+        if (this.onVoiceState && msg.id) this.onVoiceState(msg.id, !!msg.enabled);
+        break;
+      }
+
       case 'player:moved': {
         const avatar = this.remotePlayers.get(msg.id);
         if (avatar) {
@@ -413,6 +428,18 @@ export class NetworkManager {
     }
   }
 
+  public sendVoiceSignal(para: string, data: any) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'voice:signal', to: para, data }));
+    }
+  }
+
+  public sendVoiceState(enabled: boolean) {
+    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+      this.ws.send(JSON.stringify({ type: 'voice:state', enabled }));
+    }
+  }
+
   public sendBlockUpdate(x: number, y: number, z: number, blockType: BlockType) {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
       this.ws.send(
@@ -451,6 +478,7 @@ export class NetworkManager {
   }
 
   public disconnect() {
+    this.isDisposed = true;
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
     if (this.httpPollTimer) clearInterval(this.httpPollTimer);
 

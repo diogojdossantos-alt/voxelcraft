@@ -1,7 +1,7 @@
 import React from 'react';
 import { BlockType, BLOCK_METAS } from '../game/constants';
 import { TargetBlock } from '../game/player';
-import { Sparkles, Users, MessageSquare, Compass, Settings, MousePointer, Hand, Pickaxe, Hammer, Gamepad2, CloudRain, CloudSnow, Sun, Map as MapIcon, Heart, Swords, Skull } from 'lucide-react';
+import { Sparkles, Users, MessageSquare, Compass, Settings, MousePointer, Hand, Pickaxe, Hammer, Gamepad2, CloudRain, CloudSnow, Sun, Map as MapIcon, Heart, Swords, Skull, Mic, MicOff, Radio } from 'lucide-react';
 import { WeatherType } from '../game/weather';
 
 interface HUDProps {
@@ -38,6 +38,13 @@ interface HUDProps {
   onCycleWeather: () => void;
   showMiniMap: boolean;
   onToggleMiniMap: () => void;
+  voiceOn: boolean;
+  voiceTalking: boolean;
+  voiceOpenMic: boolean;
+  voiceSpeakers: string[];
+  voiceError: string | null;
+  onToggleVoice: () => void;
+  onToggleOpenMic: () => void;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -74,6 +81,13 @@ export const HUD: React.FC<HUDProps> = ({
   onCycleWeather,
   showMiniMap,
   onToggleMiniMap,
+  voiceOn,
+  voiceTalking,
+  voiceOpenMic,
+  voiceSpeakers,
+  voiceError,
+  onToggleVoice,
+  onToggleOpenMic,
 }) => {
   const selectedBlock = hotbar[selectedSlot] || BlockType.GRASS;
   const currentMeta = BLOCK_METAS[selectedBlock] || BLOCK_METAS[BlockType.GRASS];
@@ -300,6 +314,43 @@ export const HUD: React.FC<HUDProps> = ({
           )}
 
           <button
+            onClick={onToggleVoice}
+            className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg flex items-center gap-1.5 ${
+              voiceOn
+                ? voiceTalking
+                  ? 'bg-emerald-500/40 border-emerald-300 text-emerald-100'
+                  : 'bg-emerald-500/20 border-emerald-500/40 text-emerald-200'
+                : 'bg-black/70 border-white/20 text-white hover:bg-white/10'
+            }`}
+            title={
+              voiceOn
+                ? 'Voz ligada. Segure V para falar. Clique para desligar.'
+                : 'Ligar o chat de voz (pede o microfone)'
+            }
+          >
+            {voiceOn ? <Mic className="w-3.5 h-3.5" /> : <MicOff className="w-3.5 h-3.5" />}
+            Voz
+          </button>
+
+          {voiceOn && (
+            <button
+              onClick={onToggleOpenMic}
+              className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
+                voiceOpenMic
+                  ? 'bg-amber-500/30 border-amber-400 text-amber-200'
+                  : 'bg-black/70 border-white/20 text-white hover:bg-white/10'
+              }`}
+              title={
+                voiceOpenMic
+                  ? 'Microfone aberto: todos te ouvem sempre'
+                  : 'Push-to-talk: segure V para falar'
+              }
+            >
+              {voiceOpenMic ? 'Mic aberto' : 'V p/ falar'}
+            </button>
+          )}
+
+          <button
             onClick={onOpenSettings}
             className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
             title="Configurações"
@@ -342,6 +393,26 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         {/* Survival Hearts Gauge (Only in Survival mode) */}
+        {voiceError && (
+          <div className="absolute top-28 left-1/2 -translate-x-1/2 px-3 py-1.5 bg-rose-500/20 border border-rose-500/40 rounded-lg text-rose-200 text-xs backdrop-blur">
+            {voiceError}
+          </div>
+        )}
+
+        {voiceOn && voiceSpeakers.length > 0 && (
+          <div className="absolute top-28 right-4 flex flex-col gap-1 items-end pointer-events-none">
+            {voiceSpeakers.map((id) => (
+              <div
+                key={id}
+                className="flex items-center gap-1.5 px-2 py-1 bg-emerald-500/25 border border-emerald-400/40 rounded-lg text-emerald-100 text-[11px] backdrop-blur"
+              >
+                <Radio className="w-3 h-3 animate-pulse" />
+                {id}
+              </div>
+            ))}
+          </div>
+        )}
+
         {!isCreative && (
           <div className="flex items-center gap-1.5 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full border border-white/15 shadow-xl">
             <div className="flex items-center gap-1">

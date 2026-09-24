@@ -10,7 +10,16 @@ const __dirname = path.dirname(__filename);
 const app = express();
 app.use(express.json());
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+// noServer: com a opcao { server } o ws captura TODO upgrade, inclusive o do
+// HMR do Vite, e os dois se atropelavam. O roteamento por caminho fica abaixo.
+const wss = new WebSocketServer({ noServer: true });
+export const WS_PATH = '/ws';
+
+httpServer.on('upgrade', (req, socket, head) => {
+  const { pathname } = new URL(req.url || '/', `http://${req.headers.host}`);
+  if (pathname !== WS_PATH) return; // deixa o HMR do Vite com o dele
+  wss.handleUpgrade(req, socket, head, (ws) => wss.emit('connection', ws, req));
+});
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -230,6 +239,19 @@ wss.on('connection', (ws: WebSocket) => {
           if (currentRoom.chatHistory.length > 50) currentRoom.chatHistory.shift();
           broadcastToRoom(currentRoom, { type: 'chat:message', message: chatMsg });
         }
+      } else if (msg.type === 'voice:signal' && currentRoom) {
+        // Entrega a apresentacao WebRTC ao destinatario. O audio em si nunca
+        // passa por aqui: vai direto de um navegador para o outro.
+        const alvo = currentRoom.clients.get(String(msg.to));
+        if (alvo && alvo.readyState === WebSocket.OPEN) {
+          alvo.send(JSON.stringify({ type: 'voice:signal', from: playerId, data: msg.data }));
+        }
+      } else if (msg.type === 'voice:state' && currentRoom) {
+        broadcastToRoom(
+          currentRoom,
+          { type: 'voice:state', id: playerId, enabled: !!msg.enabled },
+          playerId
+        );
       } else if (msg.type === 'ping') {
         ws.send(JSON.stringify({ type: 'pong', time: Date.now() }));
       }
@@ -439,7 +461,9 @@ async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      // hmr.server faz o Vite entrar em modo noServer e responder so ao
+      // proprio protocolo, sem disputar o upgrade com o wss do jogo.
+      server: { middlewareMode: true, ws: { server: httpServer } },
       appType: 'spa',
     });
     app.use(vite.middlewares);
