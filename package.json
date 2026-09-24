@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
-    "start": "tsx server.ts",
+    "start": "set NODE_ENV=production&& tsx server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
     "dev:preview": "set PORT=3100&& tsx server.ts",
     "cert": "node scripts/gerar-certificado.mjs",
-    "dev:http": "set VOXEL_HTTP=1&& tsx server.ts"
+    "dev:http": "set VOXEL_HTTP=1&& tsx server.ts",
+    "icones": "node scripts/gerar-icones.mjs",
+    "app": "npm run build && npm start"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",
