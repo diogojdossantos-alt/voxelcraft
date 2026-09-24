@@ -54,7 +54,11 @@ export class Environment {
     this.dirLight.shadow.camera.right = d;
     this.dirLight.shadow.camera.top = d;
     this.dirLight.shadow.camera.bottom = -d;
+    // Sem bias as faces iluminadas dos blocos se sombreiam sozinhas (acne)
+    this.dirLight.shadow.normalBias = 0.05;
     this.scene.add(this.dirLight);
+    // O alvo precisa estar na cena para acompanhar o jogador em update()
+    this.scene.add(this.dirLight.target);
 
     // Sun Mesh (blocky billboard/cube)
     const sunGeo = new THREE.BoxGeometry(10, 10, 1);
@@ -140,6 +144,10 @@ export class Environment {
 
     this.moonMesh.position.set(moonX, moonY, moonZ);
     this.moonMesh.lookAt(playerPos);
+
+    // A sombra mira o jogador: parada na origem, ela sumia ao andar para longe do spawn
+    this.dirLight.target.position.copy(playerPos);
+    this.dirLight.target.updateMatrixWorld();
 
     // Position main light at active celestial body
     const isDay = Math.cos(angle) > 0;

@@ -131,7 +131,7 @@ export default function App() {
     renderer.setSize(width, height);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap; // PCFSoftShadowMap foi removido no r186
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -220,7 +220,8 @@ export default function App() {
     mobManagerRef.current = mobManager;
 
     // 9. Animation & Game Loop
-    const clock = new THREE.Clock();
+    const timer = new THREE.Timer();
+    timer.connect(document); // zera o delta com a aba oculta, evitando o salto na volta
     let frameCount = 0;
     let lastFpsTime = performance.now();
     let animationId: number;
@@ -228,7 +229,8 @@ export default function App() {
     const animate = () => {
       animationId = requestAnimationFrame(animate);
 
-      const delta = Math.min(clock.getDelta(), 0.1);
+      timer.update();
+      const delta = Math.min(timer.getDelta(), 0.1);
 
       // Update Player
       player.heldItemType = hotbar[selectedSlot] || BlockType.GRASS;
@@ -384,6 +386,7 @@ export default function App() {
       world.dispose();
       player.dispose();
       weatherRef.current?.dispose();
+      timer.dispose();
       renderer.dispose();
       // Remove o canvas pelo pai real: o React já zerou containerRef.current
       // antes da limpeza rodar, então confiar nele deixava o canvas órfão no DOM.
