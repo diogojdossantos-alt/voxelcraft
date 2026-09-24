@@ -285,17 +285,19 @@ export const HUD: React.FC<HUDProps> = ({
             {isThirdPerson ? '3ªP' : '1ªP'}
           </button>
 
-          <button
-            onClick={onToggleFlight}
-            className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
-              isFlying
-                ? 'bg-amber-500/30 border-amber-400 text-amber-200'
-                : 'bg-black/70 border-white/20 text-white hover:bg-white/10'
-            }`}
-            title="Alternar Modo Voo [F]"
-          >
-            Voo [F]
-          </button>
+          {isCreative && (
+            <button
+              onClick={onToggleFlight}
+              className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
+                isFlying
+                  ? 'bg-amber-500/30 border-amber-400 text-amber-200'
+                  : 'bg-black/70 border-white/20 text-white hover:bg-white/10'
+              }`}
+              title="Alternar Modo Voo [F]"
+            >
+              Voo [F]
+            </button>
+          )}
 
           <button
             onClick={onOpenSettings}

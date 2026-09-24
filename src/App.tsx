@@ -397,6 +397,11 @@ export default function App() {
   // Update selected block held by avatar
   useEffect(() => {
     isCreativeRef.current = isCreative;
+    // Ao voltar para Sobrevivencia, quem estava voando cai
+    if (!isCreative && playerRef.current?.isFlying) {
+      playerRef.current.isFlying = false;
+      setIsFlying(false);
+    }
   }, [isCreative]);
 
   useEffect(() => {
@@ -434,6 +439,16 @@ export default function App() {
       }
     }
   };
+
+  // Voo e exclusivo do modo Criativo: no Sobrevivencia a tecla F,
+  // o botao do HUD e o controle mobile nao fazem nada.
+  const toggleFlight = useCallback(() => {
+    const player = playerRef.current;
+    if (!player || !isCreativeRef.current) return;
+    player.isFlying = !player.isFlying;
+    setIsFlying(player.isFlying);
+    sound.playJump();
+  }, []);
 
   // Keyboard Event Handlers
   useEffect(() => {
@@ -474,9 +489,7 @@ export default function App() {
           player.isSneaking = true;
           break;
         case 'KeyF':
-          player.isFlying = !player.isFlying;
-          setIsFlying(player.isFlying);
-          sound.playJump();
+          toggleFlight();
           break;
         case 'F5':
           e.preventDefault();
@@ -552,7 +565,7 @@ export default function App() {
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('wheel', handleWheel);
     };
-  }, [chatOpen, inventoryOpen, roomsOpen, settingsOpen]);
+  }, [chatOpen, inventoryOpen, roomsOpen, settingsOpen, toggleFlight]);
 
   // Execute Attack against Hostile Mobs (Zombies & Skeletons)
   const executeAttack = useCallback((): boolean => {
@@ -994,13 +1007,7 @@ export default function App() {
             setRoomsOpen(true);
             document.exitPointerLock?.();
           }}
-          onToggleFlight={() => {
-            if (playerRef.current) {
-              playerRef.current.isFlying = !playerRef.current.isFlying;
-              setIsFlying(playerRef.current.isFlying);
-              sound.playJump();
-            }
-          }}
+          onToggleFlight={toggleFlight}
           onToggleCamera={() => {
             if (playerRef.current) {
               playerRef.current.isThirdPerson = !playerRef.current.isThirdPerson;
@@ -1032,14 +1039,9 @@ export default function App() {
           onMineClick={executeMine}
           onPlaceClick={executePlace}
           onAttackClick={executeAttack}
-          onToggleFlight={() => {
-            if (playerRef.current) {
-              playerRef.current.isFlying = !playerRef.current.isFlying;
-              setIsFlying(playerRef.current.isFlying);
-              sound.playJump();
-            }
-          }}
+          onToggleFlight={toggleFlight}
           isFlying={isFlying}
+          isCreative={isCreative}
           visible={showOnScreenControls}
         />
       )}

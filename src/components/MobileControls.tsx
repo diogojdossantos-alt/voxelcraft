@@ -9,6 +9,7 @@ interface MobileControlsProps {
   onAttackClick?: () => void;
   onToggleFlight: () => void;
   isFlying: boolean;
+  isCreative: boolean;
   visible?: boolean;
 }
 
@@ -20,6 +21,7 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   onAttackClick,
   onToggleFlight,
   isFlying,
+  isCreative,
   visible = true,
 }) => {
   if (!visible) return null;
@@ -79,16 +81,18 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
         {/* Action Buttons (Attack, Mine, Place, Jump, Fly) */}
         <div className="pointer-events-auto flex flex-col gap-2 items-end">
           <div className="flex gap-2">
-            <button
-              onClick={onToggleFlight}
-              className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold border transition active:scale-95 shadow-lg cursor-pointer ${
-                isFlying
-                  ? 'bg-amber-500/80 border-amber-300 text-white'
-                  : 'bg-black/60 border-white/20 text-slate-200'
-              }`}
-            >
-              <ChevronsUp className="w-5 h-5" />
-            </button>
+            {isCreative && (
+              <button
+                onClick={onToggleFlight}
+                className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center text-xs font-bold border transition active:scale-95 shadow-lg cursor-pointer ${
+                  isFlying
+                    ? 'bg-amber-500/80 border-amber-300 text-white'
+                    : 'bg-black/60 border-white/20 text-slate-200'
+                }`}
+              >
+                <ChevronsUp className="w-5 h-5" />
+              </button>
+            )}
             <button
               onTouchStart={() => onJumpPress(true)}
               onTouchEnd={() => onJumpPress(false)}
