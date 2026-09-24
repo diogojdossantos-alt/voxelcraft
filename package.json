@@ -10,7 +10,9 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
-    "dev:preview": "set PORT=3100&& tsx server.ts"
+    "dev:preview": "set PORT=3100&& tsx server.ts",
+    "cert": "node scripts/gerar-certificado.mjs",
+    "dev:http": "set VOXEL_HTTP=1&& tsx server.ts"
   },
   "dependencies": {
     "@google/genai": "^2.4.0",

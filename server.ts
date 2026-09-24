@@ -1,5 +1,7 @@
 import express from 'express';
 import { createServer } from 'http';
+import { createServer as createHttpsServer } from 'https';
+import { readFileSync, existsSync } from 'fs';
 import { WebSocketServer, WebSocket } from 'ws';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -9,7 +11,20 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.json());
-const httpServer = createServer(app);
+
+// O navegador so libera o microfone em "origem segura": localhost ou https.
+// Com o certificado gerado por `npm run cert`, o servidor sobe em https e o
+// chat de voz passa a funcionar tambem para quem entra pelo IP da rede.
+const CERT_DIR = path.join(__dirname, 'certs');
+const CERT_FILE = path.join(CERT_DIR, 'cert.pem');
+const KEY_FILE = path.join(CERT_DIR, 'key.pem');
+// VOXEL_HTTP=1 forca http mesmo com o certificado presente (npm run dev:http).
+export const usandoHttps =
+  !process.env.VOXEL_HTTP && existsSync(CERT_FILE) && existsSync(KEY_FILE);
+
+const httpServer = usandoHttps
+  ? createHttpsServer({ cert: readFileSync(CERT_FILE), key: readFileSync(KEY_FILE) }, app)
+  : createServer(app);
 // noServer: com a opcao { server } o ws captura TODO upgrade, inclusive o do
 // HMR do Vite, e os dois se atropelavam. O roteamento por caminho fica abaixo.
 const wss = new WebSocketServer({ noServer: true });
@@ -475,7 +490,13 @@ async function startServer() {
   }
 
   httpServer.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 VoxelCraft server running on http://0.0.0.0:${PORT}`);
+    const esquema = usandoHttps ? 'https' : 'http';
+    console.log(`🚀 VoxelCraft server running on ${esquema}://0.0.0.0:${PORT}`);
+    if (usandoHttps) {
+      console.log('   Certificado proprio: cada navegador avisa uma vez, e so aceitar.');
+    } else {
+      console.log('   Sem https: o microfone so funciona em localhost. Rode: npm run cert');
+    }
   });
 }
 

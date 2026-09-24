@@ -6,3 +6,6 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Certificado de desenvolvimento (contem chave privada)
+certs/
