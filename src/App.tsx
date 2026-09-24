@@ -385,9 +385,9 @@ export default function App() {
       player.dispose();
       weatherRef.current?.dispose();
       renderer.dispose();
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement);
-      }
+      // Remove o canvas pelo pai real: o React já zerou containerRef.current
+      // antes da limpeza rodar, então confiar nele deixava o canvas órfão no DOM.
+      renderer.domElement.remove();
     };
   }, []);
 
