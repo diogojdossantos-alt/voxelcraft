@@ -1,0 +1,6 @@
+{
+  "name": "VoxelCraft - Sandbox & Multiplayer",
+  "description": "Jogo 3D estilo Minecraft com geração procedural de mundos, mineração, construção, ciclo dia/noite e multijogador em tempo real via WebSockets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
