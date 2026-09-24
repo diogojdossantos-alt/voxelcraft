@@ -9,3 +9,6 @@ coverage/
 
 # Certificado de desenvolvimento (contem chave privada)
 certs/
+
+# Bundle do servidor, gerado por npm run build:server
+server.js

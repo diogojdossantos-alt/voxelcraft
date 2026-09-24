@@ -9,6 +9,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Flags de linha de comando em vez de variaveis: "set X=1&&" so funciona no
+// Windows e quebraria silenciosamente no Linux da hospedagem, caindo em modo
+// desenvolvimento. A variavel de ambiente segue valendo porque e o que os
+// servicos de hospedagem definem sozinhos.
+const ehProducao = process.env.NODE_ENV === 'production' || process.argv.includes('--prod');
+const forcarHttp = !!process.env.VOXEL_HTTP || process.argv.includes('--http');
+
 const app = express();
 app.use(express.json());
 
@@ -19,8 +26,7 @@ const CERT_DIR = path.join(__dirname, 'certs');
 const CERT_FILE = path.join(CERT_DIR, 'cert.pem');
 const KEY_FILE = path.join(CERT_DIR, 'key.pem');
 // VOXEL_HTTP=1 forca http mesmo com o certificado presente (npm run dev:http).
-export const usandoHttps =
-  !process.env.VOXEL_HTTP && existsSync(CERT_FILE) && existsSync(KEY_FILE);
+export const usandoHttps = !forcarHttp && existsSync(CERT_FILE) && existsSync(KEY_FILE);
 
 const httpServer = usandoHttps
   ? createHttpsServer({ cert: readFileSync(CERT_FILE), key: readFileSync(KEY_FILE) }, app)
@@ -473,7 +479,7 @@ app.post('/api/room/sync', (req, res) => {
 
 // Setup Express and Vite
 async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
+  if (!ehProducao) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       // hmr.server faz o Vite entrar em modo noServer e responder so ao
@@ -494,6 +500,8 @@ async function startServer() {
     console.log(`🚀 VoxelCraft server running on ${esquema}://0.0.0.0:${PORT}`);
     if (usandoHttps) {
       console.log('   Certificado proprio: cada navegador avisa uma vez, e so aceitar.');
+    } else if (ehProducao) {
+      console.log('   Modo producao: servindo o build de dist/.');
     } else {
       console.log('   Sem https: o microfone so funciona em localhost. Rode: npm run cert');
     }

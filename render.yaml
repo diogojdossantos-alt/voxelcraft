@@ -1,0 +1,13 @@
+# Configuracao para o Render (render.com).
+# Com este arquivo no repositorio, o Render monta o servico sozinho:
+# New > Blueprint > aponta para o repo.
+services:
+  - type: web
+    name: voxelcraft
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
