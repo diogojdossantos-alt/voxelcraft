@@ -13,6 +13,17 @@ export function createWorldGenerator(seed: number): WorldGenerator {
   const noise = new SeededNoise(seed);
   const biomeNoise = new SeededNoise(seed + 9999);
   const caveNoise = new SeededNoise(seed + 4444);
+  // Bacias de agua. Ruido proprio, e nao uma faixa do seletor de biomas, para
+  // lago e oceano poderem acontecer dentro de qualquer bioma sem roubar area
+  // do deserto ou da montanha.
+  const lakeNoise = new SeededNoise(seed + 7777);
+
+  /** Abaixo disto o terreno comeca a afundar. */
+  const LIMIAR_BACIA = -0.06;
+  /** Quanto o ruido precisa cair a mais para chegar ao fundo maximo. */
+  const LARGURA_BACIA = 0.3;
+  /** Blocos que o fundo da bacia desce em relacao ao terreno normal. */
+  const PROFUNDIDADE_BACIA = 16;
 
   const getSurfaceHeight = (worldX: number, worldZ: number): number => {
     // Biome selector: -1 = Desert, 0 = Plains/Forest, +1 = Mountains
@@ -30,6 +41,16 @@ export function createWorldGenerator(seed: number): WorldGenerator {
     } else {
       // Plains / Forest
       hillHeight = noise.fbm2D(worldX * 0.02, worldZ * 0.02, 3) * 8 + 4;
+    }
+
+    // Bacia: afunda o terreno onde o ruido acusa depressao. A descida e
+    // gradual a partir da borda, o que deixa a beirada no nivel da agua e
+    // forma praia em vez de paredao.
+    const bacia = lakeNoise.fbm2D(worldX * 0.008, worldZ * 0.008, 2);
+    if (bacia < LIMIAR_BACIA) {
+      const t = Math.min(1, (LIMIAR_BACIA - bacia) / LARGURA_BACIA);
+      // t ao quadrado deixa a borda mais rasa e o meio mais fundo.
+      hillHeight -= PROFUNDIDADE_BACIA * t * t;
     }
 
     const h = Math.floor(baseHeight + hillHeight);

@@ -73,9 +73,11 @@ export class World {
            // So o topo do bloco ondula: as laterais ficam presas no lugar,
            // senao apareceriam frestas entre um bloco de agua e o vizinho.
            if (normal.y > 0.5) {
-             transformed.y += sin(position.x * 0.9 + tempoOnda) * 0.055
-                            + sin(position.z * 1.3 + tempoOnda * 1.4) * 0.045
-                            - 0.08;
+             // Amplitudes somadas (0.16) cabem dentro do rebaixo de 0.16,
+             // entao a crista encosta no topo do bloco mas nunca o ultrapassa.
+             transformed.y += sin(position.x * 0.9 + tempoOnda) * 0.09
+                            + sin(position.z * 1.3 + tempoOnda * 1.4) * 0.07
+                            - 0.16;
            }`
         );
     };
