@@ -602,6 +602,13 @@ export class MobManager {
     return mob;
   }
 
+  /**
+   * timeOfDay: 0 = meia-noite, 0.25 = nascer do sol, 0.5 = meio-dia, 0.75 = por do sol.
+   */
+  public ehNoite(timeOfDay: number): boolean {
+    return timeOfDay < 0.22 || timeOfDay > 0.78;
+  }
+
   // Determines if candidate (x, y, z) is in a dark area (caves, underground, or surface at night)
   public isDarkArea(x: number, y: number, z: number, timeOfDay: number): boolean {
     const bx = Math.floor(x);
@@ -634,14 +641,15 @@ export class MobManager {
       return true;
     }
 
-    // 3. Surface check: is it night time?
-    // timeOfDay: 0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
-    const isNight = timeOfDay < 0.22 || timeOfDay > 0.78;
-    return isNight;
+    // 3. Superficie: so e escuro se for noite
+    return this.ehNoite(timeOfDay);
   }
 
   // Attempt periodic mob spawning around player in dark spots
   private trySpawnMobs(playerPos: THREE.Vector3, timeOfDay: number) {
+    // Hostis so nascem de noite. Antes bastava o lugar ser escuro, entao
+    // caverna gerava monstro ao meio-dia; agora a hora do dia manda.
+    if (!this.ehNoite(timeOfDay)) return;
     if (this.mobs.length >= this.maxMobs) return;
 
     // Pick a candidate location between 16 and 32 blocks away from player
