@@ -647,9 +647,6 @@ export class MobManager {
 
   // Attempt periodic mob spawning around player in dark spots
   private trySpawnMobs(playerPos: THREE.Vector3, timeOfDay: number) {
-    // Hostis so nascem de noite. Antes bastava o lugar ser escuro, entao
-    // caverna gerava monstro ao meio-dia; agora a hora do dia manda.
-    if (!this.ehNoite(timeOfDay)) return;
     if (this.mobs.length >= this.maxMobs) return;
 
     // Pick a candidate location between 16 and 32 blocks away from player
