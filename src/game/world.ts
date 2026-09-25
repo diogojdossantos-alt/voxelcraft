@@ -20,6 +20,9 @@ export class World {
   public generator: WorldGenerator;
   public solidMaterial: THREE.MeshLambertMaterial;
   public transparentMaterial: THREE.MeshLambertMaterial;
+  public liquidMaterial: THREE.MeshLambertMaterial;
+  /** Relogio da ondulacao, avancado a cada quadro. */
+  private ondaUniform = { value: 0 };
   public modifiedBlocks: Map<string, BlockType> = new Map(); // "x,y,z" -> BlockType
   public renderRadius: number = 3; // 3 chunks radius (7x7 = 49 chunks loaded)
   public particles: VoxelParticle[] = [];
@@ -46,6 +49,36 @@ export class World {
       opacity: 0.8,
       depthWrite: false,
     });
+
+    // Agua: mais transparente que vidro e folhas, com tom azulado proprio e
+    // superficie que ondula. A onda e feita no vertice, via injecao no shader
+    // do Lambert, entao nao custa nada de CPU e a iluminacao continua valendo.
+    this.liquidMaterial = new THREE.MeshLambertMaterial({
+      map: texture,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.72,
+      depthWrite: false,
+      color: new THREE.Color(0x9fd8ff),
+      side: THREE.DoubleSide, // para enxergar a superficie de baixo d'agua
+    });
+
+    this.liquidMaterial.onBeforeCompile = (shader) => {
+      shader.uniforms.tempoOnda = this.ondaUniform;
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nuniform float tempoOnda;')
+        .replace(
+          '#include <begin_vertex>',
+          `#include <begin_vertex>
+           // So o topo do bloco ondula: as laterais ficam presas no lugar,
+           // senao apareceriam frestas entre um bloco de agua e o vizinho.
+           if (normal.y > 0.5) {
+             transformed.y += sin(position.x * 0.9 + tempoOnda) * 0.055
+                            + sin(position.z * 1.3 + tempoOnda * 1.4) * 0.045
+                            - 0.08;
+           }`
+        );
+    };
 
     this.initParticleSystem();
   }
@@ -255,15 +288,23 @@ export class World {
   public rebuildChunk(chunk: Chunk) {
     if (chunk.mesh) this.scene.remove(chunk.mesh);
     if (chunk.transparentMesh) this.scene.remove(chunk.transparentMesh);
+    if (chunk.liquidMesh) this.scene.remove(chunk.liquidMesh);
 
-    const { solid, transparent } = chunk.buildMeshes(
+    const { solid, transparent, liquid } = chunk.buildMeshes(
       (wx, wy, wz) => this.getBlock(wx, wy, wz),
       this.solidMaterial,
-      this.transparentMaterial
+      this.transparentMaterial,
+      this.liquidMaterial
     );
 
     if (solid) this.scene.add(solid);
     if (transparent) this.scene.add(transparent);
+    if (liquid) this.scene.add(liquid);
+  }
+
+  /** Avanca a ondulacao da agua. Chamado uma vez por quadro. */
+  public updateWater(delta: number) {
+    this.ondaUniform.value += delta * 1.6;
   }
 
   public loadChunksAround(playerX: number, playerZ: number) {
@@ -311,9 +352,12 @@ export class World {
     // Unload distant chunks to preserve memory
     for (const [key, chunk] of this.chunks.entries()) {
       if (!neededKeys.has(key)) {
-        chunk.dispose();
+        // Remover ANTES de dispose(): ele zera as referencias, entao fazer
+        // na ordem inversa deixava as malhas presas na cena para sempre.
         if (chunk.mesh) this.scene.remove(chunk.mesh);
         if (chunk.transparentMesh) this.scene.remove(chunk.transparentMesh);
+        if (chunk.liquidMesh) this.scene.remove(chunk.liquidMesh);
+        chunk.dispose();
         this.chunks.delete(key);
       }
     }
@@ -344,9 +388,10 @@ export class World {
 
   public dispose() {
     for (const chunk of this.chunks.values()) {
-      chunk.dispose();
       if (chunk.mesh) this.scene.remove(chunk.mesh);
       if (chunk.transparentMesh) this.scene.remove(chunk.transparentMesh);
+      if (chunk.liquidMesh) this.scene.remove(chunk.liquidMesh);
+      chunk.dispose();
     }
     this.chunks.clear();
     if (this.particlePoints) this.scene.remove(this.particlePoints);

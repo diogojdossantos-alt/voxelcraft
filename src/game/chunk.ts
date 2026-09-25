@@ -13,6 +13,8 @@ export class Chunk {
   public data: Uint8Array;
   public mesh: THREE.Mesh | null = null;
   public transparentMesh: THREE.Mesh | null = null;
+  /** Liquidos ficam separados para poder ondular sem levar vidro e folhas junto. */
+  public liquidMesh: THREE.Mesh | null = null;
   public isDirty: boolean = true;
 
   constructor(cx: number, cz: number, data: Uint8Array) {
@@ -43,8 +45,9 @@ export class Chunk {
   public buildMeshes(
     getBlockAtWorld: (wx: number, wy: number, wz: number) => BlockType,
     solidMaterial: THREE.Material,
-    transMaterial: THREE.Material
-  ): { solid: THREE.Mesh | null; transparent: THREE.Mesh | null } {
+    transMaterial: THREE.Material,
+    liquidMaterial?: THREE.Material
+  ): { solid: THREE.Mesh | null; transparent: THREE.Mesh | null; liquid: THREE.Mesh | null } {
     const startX = this.cx * CHUNK_SIZE_X;
     const startZ = this.cz * CHUNK_SIZE_Z;
 
@@ -59,6 +62,12 @@ export class Chunk {
     const transNormals: number[] = [];
     const transUVs: number[] = [];
     const transColors: number[] = [];
+
+    // Liquidos
+    const liqPositions: number[] = [];
+    const liqNormals: number[] = [];
+    const liqUVs: number[] = [];
+    const liqColors: number[] = [];
 
     // Direction vectors & brightness multipliers for directional block shading
     // Top (+Y), Bottom (-Y), North (+Z), South (-Z), East (+X), West (-X)
@@ -128,11 +137,12 @@ export class Chunk {
           if (blockType === BlockType.AIR) continue;
 
           const meta = BLOCK_METAS[blockType] || BLOCK_METAS[BlockType.STONE];
-          const isTrans = meta.isTransparent || meta.isLiquid;
-          const posArr = isTrans ? transPositions : solidPositions;
-          const normArr = isTrans ? transNormals : solidNormals;
-          const uvArr = isTrans ? transUVs : solidUVs;
-          const colArr = isTrans ? transColors : solidColors;
+          const isLiquid = !!meta.isLiquid;
+          const isTrans = meta.isTransparent || isLiquid;
+          const posArr = isLiquid ? liqPositions : isTrans ? transPositions : solidPositions;
+          const normArr = isLiquid ? liqNormals : isTrans ? transNormals : solidNormals;
+          const uvArr = isLiquid ? liqUVs : isTrans ? transUVs : solidUVs;
+          const colArr = isLiquid ? liqColors : isTrans ? transColors : solidColors;
 
           const wx = startX + lx;
           const wy = y;
@@ -318,6 +328,10 @@ export class Chunk {
       this.transparentMesh.geometry.dispose();
       this.transparentMesh = null;
     }
+    if (this.liquidMesh) {
+      this.liquidMesh.geometry.dispose();
+      this.liquidMesh = null;
+    }
 
     // Build solid mesh
     if (solidPositions.length > 0) {
@@ -343,8 +357,21 @@ export class Chunk {
       this.transparentMesh = new THREE.Mesh(transGeo, transMaterial);
     }
 
+    // Build liquid mesh
+    if (liqPositions.length > 0 && liquidMaterial) {
+      const liqGeo = new THREE.BufferGeometry();
+      liqGeo.setAttribute('position', new THREE.Float32BufferAttribute(liqPositions, 3));
+      liqGeo.setAttribute('normal', new THREE.Float32BufferAttribute(liqNormals, 3));
+      liqGeo.setAttribute('uv', new THREE.Float32BufferAttribute(liqUVs, 2));
+      liqGeo.setAttribute('color', new THREE.Float32BufferAttribute(liqColors, 3));
+
+      this.liquidMesh = new THREE.Mesh(liqGeo, liquidMaterial);
+      // Recebe sombra mas nao projeta: agua projetando sombra escurece o fundo.
+      this.liquidMesh.receiveShadow = true;
+    }
+
     this.isDirty = false;
-    return { solid: this.mesh, transparent: this.transparentMesh };
+    return { solid: this.mesh, transparent: this.transparentMesh, liquid: this.liquidMesh };
   }
 
   public dispose() {
@@ -355,6 +382,10 @@ export class Chunk {
     if (this.transparentMesh) {
       this.transparentMesh.geometry.dispose();
       this.transparentMesh = null;
+    }
+    if (this.liquidMesh) {
+      this.liquidMesh.geometry.dispose();
+      this.liquidMesh = null;
     }
   }
 }

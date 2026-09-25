@@ -300,6 +300,9 @@ export default function App() {
       // Update Particles
       world.updateParticles(delta);
 
+      // Ondulacao da agua
+      world.updateWater(delta);
+
       // Load chunks as player moves
       world.loadChunksAround(player.position.x, player.position.z);
 
