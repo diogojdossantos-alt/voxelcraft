@@ -71,6 +71,56 @@ export class Chunk {
       { dir: [-1, 0, 0], norm: [-1, 0, 0], shade: 0.85, faceKey: 'west' as const },
     ];
 
+    /**
+     * Oclusao de ambiente por vertice.
+     *
+     * Cada canto de face olha os tres blocos que encostam nele do lado de
+     * fora: os dois vizinhos laterais e o da diagonal. Quanto mais cheio,
+     * mais escuro o canto -- e o que faz quina de parede, degrau e buraco
+     * ganharem volume em vez de ficarem chapados.
+     *
+     * Fica assado na cor do vertice, entao nao custa nada por quadro: o
+     * preco e so na hora de montar a malha do chunk.
+     */
+    const NIVEIS_AO = [0.55, 0.72, 0.86, 1.0];
+
+    const ehOpaco = (x: number, y: number, z: number): number => {
+      const b = getBlockAtWorld(x, y, z);
+      const m = BLOCK_METAS[b];
+      // Vidro e folhas nao devem escurecer o vizinho: deixam luz passar.
+      return m && m.isSolid && !m.isTransparent ? 1 : 0;
+    };
+
+    const ocluir = (
+      // canto da face, em coordenadas de mundo
+      vx: number, vy: number, vz: number,
+      // centro do bloco, para saber de que lado esta o canto
+      cx: number, cy: number, cz: number,
+      // direcao da face
+      dx: number, dy: number, dz: number
+    ): number => {
+      // Base = o vizinho vazio na frente da face. A oclusao mora nesse lado.
+      const bx = cx - 0.5 + dx;
+      const by = cy - 0.5 + dy;
+      const bz = cz - 0.5 + dz;
+
+      // Os dois eixos que nao sao o da normal, com o sinal do canto.
+      const eixos: Array<[number, number, number]> = [];
+      if (dx === 0) eixos.push([Math.sign(vx - cx), 0, 0]);
+      if (dy === 0) eixos.push([0, Math.sign(vy - cy), 0]);
+      if (dz === 0) eixos.push([0, 0, Math.sign(vz - cz)]);
+
+      const [e1, e2] = eixos;
+      const lado1 = ehOpaco(bx + e1[0], by + e1[1], bz + e1[2]);
+      const lado2 = ehOpaco(bx + e2[0], by + e2[1], bz + e2[2]);
+      // Com os dois lados fechados a diagonal nem importa: o canto e o mais escuro.
+      const diagonal =
+        lado1 && lado2 ? 0 : ehOpaco(bx + e1[0] + e2[0], by + e1[1] + e2[1], bz + e1[2] + e2[2]);
+
+      const nivel = lado1 && lado2 ? 0 : 3 - (lado1 + lado2 + diagonal);
+      return NIVEIS_AO[nivel];
+    };
+
     for (let lx = 0; lx < CHUNK_SIZE_X; lx++) {
       for (let lz = 0; lz < CHUNK_SIZE_Z; lz++) {
         for (let y = 0; y < CHUNK_HEIGHT; y++) {
@@ -194,29 +244,66 @@ export class Chunk {
               v4x = wx; v4y = wy + 1; v4z = wz;
             }
 
-            // Two triangles per face (v1, v2, v3) and (v1, v3, v4)
-            posArr.push(
-              v1x, v1y, v1z,
-              v2x, v2y, v2z,
-              v3x, v3y, v3z,
-              v1x, v1y, v1z,
-              v3x, v3y, v3z,
-              v4x, v4y, v4z
-            );
+            const cbx = wx + 0.5;
+            const cby = wy + 0.5;
+            const cbz = wz + 0.5;
+            const ao1 = ocluir(v1x, v1y, v1z, cbx, cby, cbz, dx, dy, dz);
+            const ao2 = ocluir(v2x, v2y, v2z, cbx, cby, cbz, dx, dy, dz);
+            const ao3 = ocluir(v3x, v3y, v3z, cbx, cby, cbz, dx, dy, dz);
+            const ao4 = ocluir(v4x, v4y, v4z, cbx, cby, cbz, dx, dy, dz);
 
-            for (let i = 0; i < 6; i++) {
-              normArr.push(nx, ny, nz);
-              colArr.push(shade, shade, shade);
+            // A face e um quadrado dividido em dois triangulos, e a diagonal
+            // escolhida aparece no sombreado. Cortar pelo par mais claro
+            // evita o vinco torto que surge quando so um canto esta escuro.
+            const virarDiagonal = ao1 + ao3 > ao2 + ao4;
+
+            if (virarDiagonal) {
+              posArr.push(
+                v2x, v2y, v2z,
+                v3x, v3y, v3z,
+                v4x, v4y, v4z,
+                v2x, v2y, v2z,
+                v4x, v4y, v4z,
+                v1x, v1y, v1z
+              );
+              const c = [ao2, ao3, ao4, ao2, ao4, ao1];
+              for (let i = 0; i < 6; i++) {
+                normArr.push(nx, ny, nz);
+                const b = shade * c[i];
+                colArr.push(b, b, b);
+              }
+              uvArr.push(
+                u1, v0,
+                u1, v1,
+                u0, v1,
+                u1, v0,
+                u0, v1,
+                u0, v0
+              );
+            } else {
+              posArr.push(
+                v1x, v1y, v1z,
+                v2x, v2y, v2z,
+                v3x, v3y, v3z,
+                v1x, v1y, v1z,
+                v3x, v3y, v3z,
+                v4x, v4y, v4z
+              );
+              const c = [ao1, ao2, ao3, ao1, ao3, ao4];
+              for (let i = 0; i < 6; i++) {
+                normArr.push(nx, ny, nz);
+                const b = shade * c[i];
+                colArr.push(b, b, b);
+              }
+              uvArr.push(
+                u0, v0,
+                u1, v0,
+                u1, v1,
+                u0, v0,
+                u1, v1,
+                u0, v1
+              );
             }
-
-            uvArr.push(
-              u0, v0,
-              u1, v0,
-              u1, v1,
-              u0, v0,
-              u1, v1,
-              u0, v1
-            );
           }
         }
       }
