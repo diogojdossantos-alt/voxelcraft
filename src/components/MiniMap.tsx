@@ -10,6 +10,8 @@ interface MiniMapProps {
   playerYaw: number;
   remotePlayers?: Map<string, RemotePlayerAvatar>;
   visible?: boolean;
+  /** Lado do mapa em pixels. Menor no celular, onde 180 ocupa a tela toda. */
+  tamanho?: number;
   onToggleVisible?: () => void;
 }
 
@@ -19,6 +21,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
   playerYaw,
   remotePlayers,
   visible = true,
+  tamanho = 180,
   onToggleVisible,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -30,7 +33,9 @@ export const MiniMap: React.FC<MiniMapProps> = ({
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
   // Map canvas dimension
-  const mapSize = 180;
+  const mapSize = tamanho;
+  // Abaixo de 180 a barra de controles nao cabe: ela some e sobra o mapa.
+  const compacto = tamanho < 180;
   const halfSize = mapSize / 2;
 
   // Detect current biome name based on player position
@@ -388,7 +393,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
 
           <div className="flex items-center gap-1">
             {/* Rotate mode toggle */}
-            {!isMinimized && (
+            {!isMinimized && !compacto && (
               <button
                 type="button"
                 onClick={() => setRotateWithPlayer((prev) => !prev)}
@@ -404,7 +409,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
             )}
 
             {/* Grid toggle */}
-            {!isMinimized && (
+            {!isMinimized && !compacto && (
               <button
                 type="button"
                 onClick={() => setShowGrid((prev) => !prev)}
@@ -420,7 +425,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
             )}
 
             {/* Zoom In */}
-            {!isMinimized && (
+            {!isMinimized && !compacto && (
               <button
                 type="button"
                 onClick={() => setZoomLevel((prev) => Math.min(2.5, prev + 0.5))}
@@ -433,7 +438,7 @@ export const MiniMap: React.FC<MiniMapProps> = ({
             )}
 
             {/* Zoom Out */}
-            {!isMinimized && (
+            {!isMinimized && !compacto && (
               <button
                 type="button"
                 onClick={() => setZoomLevel((prev) => Math.max(1.0, prev - 0.5))}
@@ -459,7 +464,8 @@ export const MiniMap: React.FC<MiniMapProps> = ({
 
         {/* 2D Canvas Area */}
         {!isMinimized && (
-          <div className="relative w-[180px] h-[180px] rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner flex items-center justify-center">
+          <div style={{ width: mapSize, height: mapSize }}
+        className="relative rounded-xl overflow-hidden bg-black border border-white/10 shadow-inner flex items-center justify-center">
             <canvas
               ref={canvasRef}
               width={mapSize}

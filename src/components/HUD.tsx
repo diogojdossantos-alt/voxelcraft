@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BlockType, BLOCK_METAS } from '../game/constants';
 import { TargetBlock } from '../game/player';
 import { Sparkles, Users, MessageSquare, Compass, Settings, MousePointer, Hand, Pickaxe, Hammer, Gamepad2, CloudRain, CloudSnow, Sun, Map as MapIcon, Heart, Swords, Skull, Mic, MicOff, Radio } from 'lucide-react';
@@ -90,6 +90,12 @@ export const HUD: React.FC<HUDProps> = ({
   onToggleOpenMic,
 }) => {
   const selectedBlock = hotbar[selectedSlot] || BlockType.GRASS;
+  // No toque, os botoes secundarios ficam atras de um menu: dez botoes
+  // embrulhando em tres linhas cobriam metade da tela do celular.
+  const [menuAberto, setMenuAberto] = useState(false);
+  const noToque = showOnScreenControls;
+  const mostrarSecundarios = !noToque || menuAberto;
+
   const currentMeta = BLOCK_METAS[selectedBlock] || BLOCK_METAS[BlockType.GRASS];
 
   // Helper colors for hotbar blocks preview
@@ -182,7 +188,7 @@ export const HUD: React.FC<HUDProps> = ({
         <div className="bg-black/70 backdrop-blur-md rounded-lg p-2.5 border border-white/10 text-xs font-mono space-y-1 text-slate-300 shadow-xl">
           <div className="flex items-center gap-2 font-bold text-white tracking-wide">
             <Compass className="w-3.5 h-3.5 text-emerald-400" />
-            <span>VoxelCraft v1.0</span>
+            <span className={noToque ? 'hidden' : ''}>VoxelCraft v1.0</span>
             <span className={`text-[10px] px-1.5 py-0.5 rounded border ${isCreative ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30' : 'bg-rose-500/20 text-rose-300 border-rose-500/30'}`}>
               {isCreative ? 'CRIATIVO' : 'SOBREVIVÊNCIA'}
             </span>
@@ -196,7 +202,12 @@ export const HUD: React.FC<HUDProps> = ({
           <div className="text-slate-400">
             XYZ: <span className="text-white font-semibold">{Math.floor(playerPos.x)}, {Math.floor(playerPos.y)}, {Math.floor(playerPos.z)}</span>
           </div>
-          <div className="flex gap-3 text-[11px]">
+          {noToque && !isCreative && (
+            <div className="text-rose-300 font-bold">
+              ❤ {health}/{maxHealth}
+            </div>
+          )}
+          <div className={`${noToque ? 'hidden' : 'flex'} gap-3 text-[11px]`}>
             <span>FPS: <span className={fps > 45 ? 'text-green-400' : 'text-yellow-400'}>{fps}</span></span>
             <span>Ping: <span className="text-cyan-400">{ping}ms</span></span>
             {isFlying && (
@@ -208,36 +219,40 @@ export const HUD: React.FC<HUDProps> = ({
         {/* Top Buttons (pointer-events-auto) */}
         <div className="pointer-events-auto flex flex-wrap items-center gap-1.5">
           {/* Dynamic Weather Badge & Quick Toggle */}
-          <button
-            onClick={onCycleWeather}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg border ${
-              weather === 'rain'
-                ? 'bg-cyan-950/80 border-cyan-400/70 text-cyan-200'
-                : weather === 'snow'
-                ? 'bg-blue-950/80 border-blue-300/70 text-blue-100'
-                : 'bg-black/75 border-amber-500/50 text-amber-300 hover:bg-white/10'
-            }`}
-            title="Clique para alternar o clima (Ensolarado / Chuva / Neve)"
-          >
-            {weather === 'clear' && <Sun className="w-3.5 h-3.5 text-amber-400" />}
-            {weather === 'rain' && <CloudRain className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />}
-            {weather === 'snow' && <CloudSnow className="w-3.5 h-3.5 text-blue-200" />}
-            <span className="capitalize">{weather === 'clear' ? 'Sol' : weather === 'rain' ? 'Chuva' : 'Neve'}</span>
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onCycleWeather}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg border ${
+                weather === 'rain'
+                  ? 'bg-cyan-950/80 border-cyan-400/70 text-cyan-200'
+                  : weather === 'snow'
+                  ? 'bg-blue-950/80 border-blue-300/70 text-blue-100'
+                  : 'bg-black/75 border-amber-500/50 text-amber-300 hover:bg-white/10'
+              }`}
+              title="Clique para alternar o clima (Ensolarado / Chuva / Neve)"
+            >
+              {weather === 'clear' && <Sun className="w-3.5 h-3.5 text-amber-400" />}
+              {weather === 'rain' && <CloudRain className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />}
+              {weather === 'snow' && <CloudSnow className="w-3.5 h-3.5 text-blue-200" />}
+              <span className="capitalize">{weather === 'clear' ? 'Sol' : weather === 'rain' ? 'Chuva' : 'Neve'}</span>
+            </button>
+          )}
 
           {/* Mouse Mode Toggle: Lock FPS vs Free Drag */}
-          <button
-            onClick={onTogglePointerLock}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg border ${
-              isPointerLocked
-                ? 'bg-emerald-600/90 border-emerald-400 text-white'
-                : 'bg-black/75 border-amber-500/50 text-amber-300 hover:bg-white/10'
-            }`}
-            title={isPointerLocked ? 'Mouse Travado no centro (Modo FPS)' : 'Clique para travar mouse no centro'}
-          >
-            {isPointerLocked ? <MousePointer className="w-3.5 h-3.5 text-white" /> : <Hand className="w-3.5 h-3.5 text-amber-400" />}
-            <span>{isPointerLocked ? 'Mouse FPS' : 'Modo Arrastar'}</span>
-          </button>
+          {!noToque && (
+            <button
+              onClick={onTogglePointerLock}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg border ${
+                isPointerLocked
+                  ? 'bg-emerald-600/90 border-emerald-400 text-white'
+                  : 'bg-black/75 border-amber-500/50 text-amber-300 hover:bg-white/10'
+              }`}
+              title={isPointerLocked ? 'Mouse Travado no centro (Modo FPS)' : 'Clique para travar mouse no centro'}
+            >
+              {isPointerLocked ? <MousePointer className="w-3.5 h-3.5 text-white" /> : <Hand className="w-3.5 h-3.5 text-amber-400" />}
+              <span>{isPointerLocked ? 'Mouse FPS' : 'Modo Arrastar'}</span>
+            </button>
+          )}
 
           {/* Mini-Map Toggle Button */}
           <button
@@ -254,33 +269,39 @@ export const HUD: React.FC<HUDProps> = ({
           </button>
 
           {/* Virtual on-screen controls toggle */}
-          <button
-            onClick={onToggleOnScreenControls}
-            className={`p-1.5 rounded-lg border text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
-              showOnScreenControls
-                ? 'bg-purple-600/90 border-purple-400 text-white'
-                : 'bg-black/70 border-white/20 text-slate-300 hover:bg-white/10'
-            }`}
-            title="Mostrar botões virtuais na tela"
-          >
-            <Gamepad2 className="w-4 h-4" />
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onToggleOnScreenControls}
+              className={`p-1.5 rounded-lg border text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
+                showOnScreenControls
+                  ? 'bg-purple-600/90 border-purple-400 text-white'
+                  : 'bg-black/70 border-white/20 text-slate-300 hover:bg-white/10'
+              }`}
+              title="Mostrar botões virtuais na tela"
+            >
+              <Gamepad2 className="w-4 h-4" />
+            </button>
+          )}
 
-          <button
-            onClick={onOpenRooms}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-xs font-medium text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
-          >
-            <Users className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Mundo ({onlineCount})</span>
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onOpenRooms}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-xs font-medium text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
+            >
+              <Users className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Mundo ({onlineCount})</span>
+            </button>
+          )}
 
-          <button
-            onClick={onOpenChat}
-            className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
-            title="Chat [T]"
-          >
-            <MessageSquare className="w-4 h-4 text-emerald-400" />
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onOpenChat}
+              className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
+              title="Chat [T]"
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-400" />
+            </button>
+          )}
 
           <button
             onClick={onOpenInventory}
@@ -291,15 +312,17 @@ export const HUD: React.FC<HUDProps> = ({
             <span>Itens [E]</span>
           </button>
 
-          <button
-            onClick={onToggleCamera}
-            className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-xs text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
-            title="Mudar Câmera 1ª/3ª Pessoa [F5]"
-          >
-            {isThirdPerson ? '3ªP' : '1ªP'}
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onToggleCamera}
+              className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-xs text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
+              title="Mudar Câmera 1ª/3ª Pessoa [F5]"
+            >
+              {isThirdPerson ? '3ªP' : '1ªP'}
+            </button>
+          )}
 
-          {isCreative && (
+          {isCreative && mostrarSecundarios && (
             <button
               onClick={onToggleFlight}
               className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
@@ -350,13 +373,28 @@ export const HUD: React.FC<HUDProps> = ({
             </button>
           )}
 
-          <button
-            onClick={onOpenSettings}
-            className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
-            title="Configurações"
-          >
-            <Settings className="w-4 h-4 text-slate-300" />
-          </button>
+          {mostrarSecundarios && (
+            <button
+              onClick={onOpenSettings}
+              className="p-2 bg-black/70 hover:bg-white/10 border border-white/20 rounded-lg text-white transition active:scale-95 cursor-pointer backdrop-blur shadow-lg"
+              title="Configurações"
+            >
+              <Settings className="w-4 h-4 text-slate-300" />
+            </button>
+          )}
+          {noToque && (
+            <button
+              onClick={() => setMenuAberto((v) => !v)}
+              className={`px-2.5 py-1.5 border rounded-lg text-xs font-medium transition active:scale-95 cursor-pointer backdrop-blur shadow-lg ${
+                menuAberto
+                  ? 'bg-white/20 border-white/40 text-white'
+                  : 'bg-black/70 border-white/20 text-white'
+              }`}
+              title="Mais opções"
+            >
+              {menuAberto ? '✕' : '☰'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -384,7 +422,9 @@ export const HUD: React.FC<HUDProps> = ({
       {/* Bottom Area: Controls hint, Action buttons & Hotbar */}
       <div className="flex flex-col items-center w-full space-y-2 pb-1">
         {/* Controls hint banner */}
-        <div className="text-[11px] text-slate-300 bg-black/70 px-3 py-1 rounded-full border border-white/15 font-mono tracking-tight flex items-center gap-2.5 shadow-md backdrop-blur">
+        <div
+          className={`${noToque ? 'hidden' : 'flex'} text-[11px] text-slate-300 bg-black/70 px-3 py-1 rounded-full border border-white/15 font-mono tracking-tight items-center gap-2.5 shadow-md backdrop-blur`}
+        >
           <span><b className="text-white">WASD:</b> Mover</span>
           <span><b className="text-white">Arraste:</b> Olhar</span>
           <span><b className="text-white">Clique Esq:</b> Minerar / Atacar</span>
@@ -414,7 +454,11 @@ export const HUD: React.FC<HUDProps> = ({
         )}
 
         {!isCreative && (
-          <div className="flex items-center gap-1.5 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full border border-white/15 shadow-xl">
+          <div
+            className={`${
+              noToque ? 'hidden' : 'flex'
+            } items-center gap-1.5 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full border border-white/15 shadow-xl`}
+          >
             <div className="flex items-center gap-1">
               {renderHearts()}
             </div>
@@ -424,8 +468,9 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
         )}
 
-        {/* Selected item label and Quick Mine / Attack / Place action buttons */}
-        <div className="flex items-center gap-2.5">
+        {/* Selected item label and Quick Mine / Attack / Place action buttons.
+            No toque essa linha some: os mesmos botoes ja estao em MobileControls. */}
+        <div className={`${noToque ? 'hidden' : 'flex'} items-center gap-2.5`}>
           <button
             onClick={onAttack || onMine}
             className="pointer-events-auto px-3.5 py-1.5 bg-red-600 hover:bg-red-500 active:scale-95 text-white text-xs font-bold rounded-xl border border-red-400 shadow-lg flex items-center gap-1.5 cursor-pointer backdrop-blur"
@@ -459,7 +504,11 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         {/* Hotbar (9 slots) */}
-        <div className="pointer-events-auto flex items-center gap-1.5 p-1.5 bg-black/80 backdrop-blur-md rounded-xl border border-white/20 shadow-2xl">
+        <div
+          className={`pointer-events-auto flex items-center p-1.5 bg-black/80 backdrop-blur-md rounded-xl border border-white/20 shadow-2xl ${
+            noToque ? 'gap-1' : 'gap-1.5'
+          }`}
+        >
           {hotbar.map((blockType, idx) => {
             const isSelected = idx === selectedSlot;
             const meta = BLOCK_METAS[blockType] || BLOCK_METAS[BlockType.GRASS];
@@ -467,7 +516,7 @@ export const HUD: React.FC<HUDProps> = ({
               <button
                 key={idx}
                 onClick={() => onSelectSlot(idx)}
-                className={`relative w-11 h-11 rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
+                className={`relative ${noToque ? 'w-9 h-9' : 'w-11 h-11'} rounded-lg flex flex-col items-center justify-center transition-all cursor-pointer ${
                   isSelected
                     ? 'scale-110 border-2 border-white ring-2 ring-emerald-400 bg-white/20 shadow-lg'
                     : 'border border-white/10 hover:border-white/30 bg-black/40 hover:bg-white/5'

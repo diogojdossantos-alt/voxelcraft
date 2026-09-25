@@ -34,6 +34,14 @@ export class Player {
   public isSneaking: boolean = false;
   public isThirdPerson: boolean = false;
 
+  /**
+   * Direcao analogica do joystick, de -1 a 1 em cada eixo (y negativo e para
+   * frente, como na tela). Quando esta em repouso o movimento volta a sair das
+   * teclas, entao teclado e joystick convivem sem um anular o outro.
+   */
+  public analogX: number = 0;
+  public analogY: number = 0;
+
   // Input states
   public keys: Record<string, boolean> = {
     forward: false,
@@ -152,14 +160,25 @@ export class Player {
     if (this.keys.right) wishDir.add(right);
     if (this.keys.left) wishDir.sub(right);
 
+    // O joystick substitui as teclas enquanto estiver fora do centro. A zona
+    // morta evita o personagem andar sozinho com o dedo parado encostado.
+    let intensidade = 1;
+    const inclinacao = Math.hypot(this.analogX, this.analogY);
+    if (inclinacao > 0.08) {
+      wishDir.set(0, 0, 0);
+      wishDir.addScaledVector(forward, -this.analogY);
+      wishDir.addScaledVector(right, this.analogX);
+      intensidade = Math.min(1, inclinacao);
+    }
+
     if (wishDir.lengthSq() > 0) {
       wishDir.normalize();
     }
 
     if (this.isFlying) {
       // Flight physics
-      const targetVx = wishDir.x * baseSpeed;
-      const targetVz = wishDir.z * baseSpeed;
+      const targetVx = wishDir.x * baseSpeed * intensidade;
+      const targetVz = wishDir.z * baseSpeed * intensidade;
       let targetVy = 0;
       if (this.keys.jump || this.keys.up) targetVy = baseSpeed * 0.8;
       if (this.keys.sneak || this.keys.down) targetVy = -baseSpeed * 0.8;
@@ -171,8 +190,8 @@ export class Player {
       this.position.addScaledVector(this.velocity, delta);
     } else {
       // Normal / Water physics
-      const targetVx = wishDir.x * baseSpeed;
-      const targetVz = wishDir.z * baseSpeed;
+      const targetVx = wishDir.x * baseSpeed * intensidade;
+      const targetVz = wishDir.z * baseSpeed * intensidade;
 
       const friction = this.isGrounded ? 15 : this.isInWater ? 8 : 2;
       this.velocity.x += (targetVx - this.velocity.x) * Math.min(1, accel * delta);

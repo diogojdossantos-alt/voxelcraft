@@ -47,8 +47,16 @@ export default function App() {
   const [nearbyHostiles, setNearbyHostiles] = useState<number>(0);
   const [weather, setWeather] = useState<WeatherType>('clear');
   const [isWeatherAuto, setIsWeatherAuto] = useState<boolean>(true);
-  const [showMiniMap, setShowMiniMap] = useState<boolean>(true);
+  // No celular o mapa comeca fechado: a tela e pequena e ele cobre o jogo.
+  // O botao Mapa abre quando a pessoa quiser.
+  const [showMiniMap, setShowMiniMap] = useState<boolean>(
+    () => !(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
+  );
   const [playerYaw, setPlayerYaw] = useState<number>(0);
+  const temToque =
+    typeof window !== 'undefined' &&
+    ('ontouchstart' in window || navigator.maxTouchPoints > 0);
+
   const [showOnScreenControls, setShowOnScreenControls] = useState<boolean>(() => {
     return typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
   });
@@ -883,9 +891,31 @@ export default function App() {
   };
 
   // Enter Game
+  /**
+   * No celular o jogo pede tela cheia e trava em paisagem. As duas coisas so
+   * sao permitidas dentro de um gesto do usuario, por isso ficam aqui, no
+   * clique de entrar, e nao num efeito. O travamento tambem exige tela cheia
+   * primeiro, e nem todo navegador aceita -- iOS nao tem a API. Quando falha,
+   * o aviso para girar o aparelho assume.
+   */
+  const entrarEmPaisagem = async () => {
+    if (!temToque) return;
+    try {
+      await document.documentElement.requestFullscreen?.();
+    } catch {
+      // usuario pode recusar ou o navegador nao permitir
+    }
+    try {
+      await (screen.orientation as any)?.lock?.('landscape');
+    } catch {
+      // iOS e alguns Android nao suportam: resta o aviso de girar
+    }
+  };
+
   const handleStartGame = () => {
     setIsPlaying(true);
     sound.playJump();
+    entrarEmPaisagem();
     try {
       document.body.requestPointerLock?.();
     } catch (e) {
@@ -893,11 +923,12 @@ export default function App() {
     }
   };
 
-  const handleMobileDirection = (dir: 'forward' | 'backward' | 'left' | 'right', pressed: boolean) => {
-    if (playerRef.current) {
-      playerRef.current.keys[dir] = pressed;
-    }
-  };
+  const handleJoystick = useCallback((x: number, y: number) => {
+    const player = playerRef.current;
+    if (!player) return;
+    player.analogX = x;
+    player.analogY = y;
+  }, []);
 
   const handleMobileJump = (pressed: boolean) => {
     if (playerRef.current) {
@@ -1089,15 +1120,34 @@ export default function App() {
         />
       )}
 
+      {/* Celular na vertical: o travamento de orientacao falhou (ou o
+          navegador nao suporta), entao pedimos para girar. So aparece no
+          toque e em pe -- some sozinho ao virar. */}
+      {isPlaying && temToque && (
+        <div className="portrait:flex hidden fixed inset-0 z-[60] flex-col items-center justify-center gap-4 bg-slate-950/95 text-center p-8">
+          <div className="text-5xl">📱</div>
+          <div className="text-lg font-bold text-white">Gire o celular</div>
+          <div className="text-sm text-slate-400 max-w-xs">
+            O VoxelCraft foi feito para a tela deitada. Vire o aparelho para
+            jogar com a área toda.
+          </div>
+        </div>
+      )}
+
       {/* Mini-map 2D World Overlay (Top-Right) */}
       {isPlaying && showMiniMap && (
-        <div className="absolute top-14 right-3 z-30 pointer-events-none">
+        <div
+          className={`absolute right-3 z-30 pointer-events-none ${
+            showOnScreenControls ? 'top-[9rem]' : 'top-14'
+          }`}
+        >
           <MiniMap
             world={worldRef.current}
             playerPos={playerPos}
             playerYaw={playerYaw}
             remotePlayers={networkRef.current?.remotePlayers}
             visible={showMiniMap}
+            tamanho={showOnScreenControls ? 120 : 180}
             onToggleVisible={() => setShowMiniMap((prev) => !prev)}
           />
         </div>
@@ -1106,7 +1156,7 @@ export default function App() {
       {/* Virtual Controls Overlay (Mobile & Desktop Toggle) */}
       {isPlaying && (
         <MobileControls
-          onDirectionPress={handleMobileDirection}
+          onJoystick={handleJoystick}
           onJumpPress={handleMobileJump}
           onMineClick={executeMine}
           onPlaceClick={executePlace}
@@ -1140,6 +1190,7 @@ export default function App() {
         onClose={() => setChatOpen(false)}
         messages={chatMessages}
         playerName={playerName}
+        noToque={showOnScreenControls}
         onSendMessage={(text) => {
           networkRef.current?.sendChat(text);
         }}

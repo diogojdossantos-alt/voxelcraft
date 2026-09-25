@@ -1,8 +1,10 @@
 import React from 'react';
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Pickaxe, Hammer, ChevronsUp, Swords, Mic } from 'lucide-react';
+import { Pickaxe, Hammer, ChevronsUp, Swords, Mic } from 'lucide-react';
+import { Joystick } from './Joystick';
 
 interface MobileControlsProps {
-  onDirectionPress: (dir: 'forward' | 'backward' | 'left' | 'right', pressed: boolean) => void;
+  /** Direcao do joystick, de -1 a 1 por eixo. y negativo e para frente. */
+  onJoystick: (x: number, y: number) => void;
   onJumpPress: (pressed: boolean) => void;
   onMineClick: () => void;
   onPlaceClick: () => void;
@@ -18,7 +20,7 @@ interface MobileControlsProps {
 }
 
 export const MobileControls: React.FC<MobileControlsProps> = ({
-  onDirectionPress,
+  onJoystick,
   onJumpPress,
   onMineClick,
   onPlaceClick,
@@ -37,54 +39,9 @@ export const MobileControls: React.FC<MobileControlsProps> = ({
   return (
     <div className="fixed inset-0 pointer-events-none z-30 flex flex-col justify-end p-4 pb-20 select-none">
       <div className="flex justify-between items-end w-full">
-        {/* Virtual D-pad for Movement */}
-        <div className="pointer-events-auto grid grid-cols-3 gap-1.5 w-36 h-36 bg-black/40 backdrop-blur-md p-2 rounded-2xl border border-white/20">
-          <div />
-          <button
-            onTouchStart={() => onDirectionPress('forward', true)}
-            onTouchEnd={() => onDirectionPress('forward', false)}
-            onMouseDown={() => onDirectionPress('forward', true)}
-            onMouseUp={() => onDirectionPress('forward', false)}
-            className="flex items-center justify-center bg-white/20 active:bg-emerald-500 rounded-xl text-white transition active:scale-95 cursor-pointer"
-          >
-            <ArrowUp className="w-6 h-6" />
-          </button>
-          <div />
-
-          <button
-            onTouchStart={() => onDirectionPress('left', true)}
-            onTouchEnd={() => onDirectionPress('left', false)}
-            onMouseDown={() => onDirectionPress('left', true)}
-            onMouseUp={() => onDirectionPress('left', false)}
-            className="flex items-center justify-center bg-white/20 active:bg-emerald-500 rounded-xl text-white transition active:scale-95 cursor-pointer"
-          >
-            <ArrowLeft className="w-6 h-6" />
-          </button>
-          <div className="flex items-center justify-center">
-            <div className="w-3 h-3 rounded-full bg-white/30" />
-          </div>
-          <button
-            onTouchStart={() => onDirectionPress('right', true)}
-            onTouchEnd={() => onDirectionPress('right', false)}
-            onMouseDown={() => onDirectionPress('right', true)}
-            onMouseUp={() => onDirectionPress('right', false)}
-            className="flex items-center justify-center bg-white/20 active:bg-emerald-500 rounded-xl text-white transition active:scale-95 cursor-pointer"
-          >
-            <ArrowRight className="w-6 h-6" />
-          </button>
-
-          <div />
-          <button
-            onTouchStart={() => onDirectionPress('backward', true)}
-            onTouchEnd={() => onDirectionPress('backward', false)}
-            onMouseDown={() => onDirectionPress('backward', true)}
-            onMouseUp={() => onDirectionPress('backward', false)}
-            className="flex items-center justify-center bg-white/20 active:bg-emerald-500 rounded-xl text-white transition active:scale-95 cursor-pointer"
-          >
-            <ArrowDown className="w-6 h-6" />
-          </button>
-          <div />
-        </div>
+        {/* Joystick analogico: anda em qualquer angulo, e a velocidade
+            acompanha o quanto o dedo se afasta do centro. */}
+        <Joystick onChange={onJoystick} />
 
         {/* Action Buttons (Attack, Mine, Place, Jump, Fly) */}
         <div className="pointer-events-auto flex flex-col gap-2 items-end">

@@ -8,6 +8,8 @@ interface ChatBoxProps {
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
   playerName: string;
+  /** Controles de toque na tela: o canto de baixo esta ocupado. */
+  noToque?: boolean;
 }
 
 export const ChatBox: React.FC<ChatBoxProps> = ({
@@ -15,6 +17,7 @@ export const ChatBox: React.FC<ChatBoxProps> = ({
   onClose,
   messages,
   onSendMessage,
+  noToque = false,
 }) => {
   const [text, setText] = useState('');
   const endRef = useRef<HTMLDivElement | null>(null);
@@ -41,8 +44,16 @@ export const ChatBox: React.FC<ChatBoxProps> = ({
   if (!isOpen) {
     // Show mini fading chat preview in lower left
     return (
-      <div className="pointer-events-none fixed bottom-24 left-4 z-40 max-w-sm space-y-1">
-        {messages.slice(-4).map((msg, idx) => (
+      <div
+        className={`pointer-events-none fixed z-40 space-y-1 ${
+          // deitado sobra pouca altura: o chat sobe e encolhe para nao
+          // cair em cima do joystick
+          noToque
+            ? 'top-[9.5rem] landscape:top-24 left-3 max-w-[45vw]'
+            : 'bottom-24 left-4 max-w-sm'
+        }`}
+      >
+        {messages.slice(noToque ? -1 : -4).map((msg, idx) => (
           <div
             key={`${msg.id || 'msg'}-${idx}`}
             className="bg-black/70 backdrop-blur px-2.5 py-1 rounded text-xs text-white border border-white/10 shadow drop-shadow font-sans"
