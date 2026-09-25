@@ -127,7 +127,11 @@ export class Environment {
     }
 
     // Angle of sun in radians (0 to 2*PI)
-    const angle = this.timeOfDay * Math.PI * 2;
+    // O -0.5 poe o sol a pino em timeOfDay 0.5, que e o meio-dia segundo a
+    // convencao usada no resto do jogo (0 = meia-noite). Sem ele o ciclo
+    // ficava meio periodo fora de fase: escurecia ao meio-dia e clareava a
+    // meia-noite, e todas as regras que dependem da hora liam o contrario.
+    const angle = (this.timeOfDay - 0.5) * Math.PI * 2;
     const sunDistance = 140;
 
     const sunX = playerPos.x + Math.sin(angle) * sunDistance;
