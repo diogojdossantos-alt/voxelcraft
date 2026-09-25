@@ -867,12 +867,16 @@ export default function App() {
     window.addEventListener('pointerdown', handlePointerDown);
     window.addEventListener('pointermove', handlePointerMove);
     window.addEventListener('pointerup', handlePointerUp);
+    // Sem isto, um gesto cancelado pelo navegador (chamada chegando, gesto do
+    // sistema) deixaria o arrasto presso ligado e a camera louca depois.
+    window.addEventListener('pointercancel', handlePointerUp);
     window.addEventListener('contextmenu', handleContextMenu);
 
     return () => {
       window.removeEventListener('pointerdown', handlePointerDown);
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
       window.removeEventListener('contextmenu', handleContextMenu);
     };
   }, [chatOpen, inventoryOpen, roomsOpen, settingsOpen, executeMine, executePlace]);

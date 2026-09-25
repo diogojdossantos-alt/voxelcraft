@@ -14,4 +14,13 @@ canvas {
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   outline: none;
+  /* Sem isto o navegador do celular trata o arrasto do dedo como rolagem da
+     pagina, dispara pointercancel no meio do gesto e a camera nao gira.
+     Fica so no canvas: os modais precisam rolar normalmente. */
+  touch-action: none;
+}
+
+html, body {
+  /* Evita o puxar-para-recarregar do Android competir com o olhar para cima. */
+  overscroll-behavior: none;
 }
